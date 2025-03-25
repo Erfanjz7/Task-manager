@@ -20,7 +20,6 @@ import {
 
 export const GalileoDesign3 = () => {
   // Navigation items data
-  const navItems = ["Home", "Explore", "Create"];
   const NAV_ITEMS = ["Home" , "Task Tracker", "Routine", "Qoutes", "Whish List", "Bad Habits" , "Good Habits" , "Things To Try" , "My Favourites"];
 
 
