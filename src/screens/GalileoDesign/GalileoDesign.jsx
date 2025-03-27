@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState , useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BellIcon,
@@ -16,6 +16,11 @@ import { Badge } from "../../components/ui/badge.jsx";
 import { Button } from "../../components/ui/button.jsx";
 import { Checkbox } from "../../components/ui/checkbox.jsx";
 import { Input } from "../../components/ui/input.jsx";
+
+import { db } from "../../firebase.js";
+import { collection, addDoc , onSnapshot  } from "firebase/firestore";
+import { getDocs } from "firebase/firestore";
+import { doc, deleteDoc } from "firebase/firestore";
 
 // Example nav items (header navigation).
 const NAV_ITEMS = ["Home" , "Task Tracker", "Routine", "Qoutes", "Whish List", "Bad Habits" , "Good Habits" , "Things To Try" , "My Favourites"];
@@ -41,48 +46,7 @@ export const GalileoDesign = () => {
   // -----------------------------
   // 1. State
   // -----------------------------
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: "Reply to Jane's email",
-      completed: false,
-      priority: "High",
-      category: "Work",
-      assigned: "Me",
-    },
-    {
-      id: 2,
-      title: "Submit expense report",
-      completed: false,
-      priority: "Moderate",
-      category: "Work",
-      assigned: "Me",
-    },
-    {
-      id: 3,
-      title: "Prepare for meeting",
-      completed: true,
-      priority: "High",
-      category: "Work",
-      assigned: "John",
-    },
-    {
-      id: 4,
-      title: "Buy groceries",
-      completed: false,
-      priority: "Low",
-      category: "Errands",
-      assigned: "Me",
-    },
-    {
-      id: 5,
-      title: "Clean living room",
-      completed: true,
-      priority: "Low",
-      category: "Personal",
-      assigned: "Jane",
-    },
-  ]);
+  const [tasks, setTasks] = useState([]);
 
   // For the search input
   const [searchTerm, setSearchTerm] = useState("");
@@ -117,37 +81,46 @@ export const GalileoDesign = () => {
   };
 
   // Add a new task
-  const handleAddTask = () => {
-    if (!newTaskTitle.trim()) return;
-
-    const newId = tasks.length > 0 ? Math.max(...tasks.map((t) => t.id)) + 1 : 1;
-    const newTask = {
-      id: newId,
-      title: newTaskTitle,
-      completed: false,
-      priority: newTaskPriority,
-      category: newTaskCategory,
-      assigned: newTaskAssigned,
-    };
-    setTasks((prevTasks) => [...prevTasks, newTask]);
-
-    // Reset the input fields
-    setNewTaskTitle("");
-    setNewTaskPriority("Low");
-    setNewTaskCategory("Work");
-    setNewTaskAssigned("Me");
-
-    // بستن پنجره ایجاد تسک بعد از اضافه شدن
-    setIsAddingTask(false);
-};
-
+  const handleAddTask = async () => {
+    if (!newTaskTitle.trim()) {
+      alert("Please enter a task title!");
+      return;
+    }
+  
+    try {
+      await addDoc(collection(db, "tasks"), {
+        title: newTaskTitle,
+        priority: newTaskPriority, // "Low", "Moderate", "High"
+        category: newTaskCategory, // "Work", "Personal", "Errands"
+        assignedTo: newTaskAssigned, // "Me", "John", "Jane"
+        completed: false, // پیش‌فرض تسک انجام‌نشده است
+        createdAt: new Date(),
+      });
+  
+      console.log("Task successfully added!");
+      
+      // پاک کردن فیلدهای فرم پس از ذخیره در Firebase
+      setNewTaskTitle("");
+      setNewTaskPriority("Low");
+      setNewTaskCategory("Work");
+      setNewTaskAssigned("Me");
+      
+      // بستن پنجره پس از ذخیره تسک
+      setIsAddingTask(false);
+    } catch (error) {
+      console.error("Error adding task: ", error);
+    }
+  };
+  
 
   // Delete a task
-  const handleDeleteTask = (taskId) => {
-    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId));
-    // Close the menu if open
-    if (menuTaskId === taskId) {
-      setMenuTaskId(null);
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await deleteDoc(doc(db, "tasks", taskId)); // حذف تسک از Firestore
+      console.log("Task deleted:", taskId);
+    } catch (error) {
+      console.error("Error deleting task:", error);
     }
   };
 
@@ -163,26 +136,72 @@ export const GalileoDesign = () => {
   // 2) Filter by selectedPriority
   // 3) Filter by selectedCategory
   // 4) Filter by selectedAssigned
-  const filteredTasks = tasks.filter((task) => {
-    // Search filter
+  
+
+  const addTask = async (task) => {
+    try {
+      await addDoc(collection(db, "tasks"), {
+        title: task.title,
+        priority: task.priority, // low, moderate, high
+        category: task.category,
+        completed: task.completed, // true/false
+        createdAt: new Date(),
+      });
+      console.log("Task added successfully!");
+    } catch (error) {
+      console.error("Error adding task: ", error);
+    }
+  };
+
+  const getTasks = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "tasks"));
+      let tasks = [];
+      querySnapshot.forEach((doc) => {
+        tasks.push({ id: doc.id, ...doc.data() });
+      });
+      console.log(tasks);
+      return tasks;
+    } catch (error) {
+      console.error("Error fetching tasks: ", error);
+      return [];
+    }
+  };
+
+  const [filteredTasks, setFilteredTasks] = useState([]); // برای فیلتر کردن لیست
+
+useEffect(() => {
+  const unsubscribe = onSnapshot(collection(db, "tasks"), (snapshot) => {
+    const tasksData = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    setTasks(tasksData);
+    setFilteredTasks(tasksData); // مقدار اولیه، قبل از اعمال فیلتر
+  });
+
+  return () => unsubscribe(); // برای پاک کردن لیسنر هنگام خروج
+}, []);
+
+// ✅ فیلتر کردن تسک‌ها
+useEffect(() => {
+  setFilteredTasks(tasks.filter((task) => {
     if (!task.title.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
-    // Priority filter
     if (selectedPriority !== "All" && task.priority !== selectedPriority) {
       return false;
     }
-    // Category filter
     if (selectedCategory !== "All" && task.category !== selectedCategory) {
       return false;
     }
-    // Assigned filter
     if (selectedAssigned !== "All" && task.assigned !== selectedAssigned) {
       return false;
     }
-
     return true;
-  });
+  }));
+}, [tasks, searchTerm, selectedPriority, selectedCategory, selectedAssigned]); // هر بار که مقدارهای فیلتر تغییر کنن، لیست آپدیت می‌شه
+
 
   // -----------------------------
   // 4. Render
@@ -414,7 +433,7 @@ export const GalileoDesign = () => {
 
                   {/* Show the priority/category/assigned for reference */}
                   <Badge variant="secondary" className="ml-auto mr-2">
-                    {task.priority} / {task.category} / {task.assigned}
+                    {task.priority} / {task.category} / {task.assignedTo}
                   </Badge>
 
                   {/* Three-dot menu icon (hidden by default, appears on hover) */}
