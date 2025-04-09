@@ -1,5 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, initializeFirestore } from "firebase/firestore";
+import { 
+  getFirestore, initializeFirestore, 
+  collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -18,10 +21,10 @@ const app = initializeApp(firebaseConfig);
 // مقداردهی اولیه Authentication
 const auth = getAuth(app);
 
-// مقداردهی اولیه Firestore با فعال کردن `experimentalForceLongPolling`
+// مقداردهی اولیه Firestore
 const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
-  useFetchStreams: false,  // این گزینه رو هم غیرفعال کن
+  useFetchStreams: false,
 });
 
-export { auth, db };
+export { auth, db, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot };

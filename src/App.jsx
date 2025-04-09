@@ -18,12 +18,6 @@ import TestFirestore from "./TestFirestore.jsx";
 function App() {
   return (
     <>
-      <nav className="p-4 flex gap-4 bg-gray-100">
-        <Link to="/">صفحه اصلی</Link>
-        <Link to="/page1">صفحه ۱</Link>
-        <Link to="/page2">صفحه ۲</Link>
-        <Link to="/firestore-test">تست Firestore</Link> {/* لینک جدید */}
-      </nav>
 
       <Routes>
         <Route path="/" element={<GalileoDesign9 />} />
